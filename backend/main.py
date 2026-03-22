@@ -143,31 +143,18 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / ".." / "frontend" / "dist"
 STATIC_DIR = STATIC_DIR.resolve()
 
-
-@app.get("/", include_in_schema=False)
-async def serve_root():
-    index = STATIC_DIR / "index.html"
-    if index.exists():
-        return FileResponse(str(index))
-    return {"error": "Frontend not built", "static_dir": str(STATIC_DIR)}
-
-
-@app.get("/{full_path:path}", include_in_schema=False)
-async def serve_spa(full_path: str):
-    if full_path.startswith("api/"):
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404)
-    index = STATIC_DIR / "index.html"
-    if index.exists():
-        return FileResponse(str(index))
-    from fastapi import HTTPException
-    raise HTTPException(status_code=404)
-
-
 assets_dir = STATIC_DIR / "assets"
 if assets_dir.exists():
     app.mount(
         "/assets",
         StaticFiles(directory=str(assets_dir)),
         name="assets",
+    )
+
+
+if STATIC_DIR.exists():
+    app.mount(
+        "/",
+        StaticFiles(directory=str(STATIC_DIR), html=True),
+        name="frontend",
     )
