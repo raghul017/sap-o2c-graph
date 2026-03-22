@@ -5,8 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
         | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
@@ -18,15 +17,15 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY backend/requirements.txt /app/backend/requirements.txt
-RUN pip install --no-cache-dir -r /app/backend/requirements.txt
-
-COPY frontend/package.json frontend/package-lock.json /app/frontend/
-WORKDIR /app/frontend
-RUN npm install
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm install
 
 COPY . /app
-RUN npm run build
+
+RUN cd frontend && npm run build
+
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
 WORKDIR /app/backend
 
