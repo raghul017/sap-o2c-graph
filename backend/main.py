@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv
@@ -21,7 +22,6 @@ from llm import run_query
 load_dotenv()
 
 DB_PATH = os.getenv("DB_PATH", "./data/o2c.db")
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "../frontend/dist")
 
 
 @asynccontextmanager
@@ -125,24 +125,49 @@ def suggested_queries():
     return {"queries": SUGGESTED_QUERIES}
 
 
+@app.get("/api/debug-paths")
+async def debug_paths():
+    base = Path(__file__).resolve().parent
+    static = (base / ".." / "frontend" / "dist").resolve()
+    return {
+        "base_dir": str(base),
+        "static_dir": str(static),
+        "static_exists": static.exists(),
+        "index_exists": (static / "index.html").exists(),
+        "assets_exists": (static / "assets").exists(),
+        "files": os.listdir(str(static)) if static.exists() else []
+    }
+
+
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / ".." / "frontend" / "dist"
+STATIC_DIR = STATIC_DIR.resolve()
+
+
 @app.get("/", include_in_schema=False)
 async def serve_root():
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    index = STATIC_DIR / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    return {"error": "Frontend not built", "static_dir": str(STATIC_DIR)}
 
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str):
     if full_path.startswith("api/"):
+        from fastapi import HTTPException
         raise HTTPException(status_code=404)
-    index = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(STATIC_DIR):
-        return FileResponse(index)
+    index = STATIC_DIR / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    from fastapi import HTTPException
     raise HTTPException(status_code=404)
 
 
-if os.path.exists(STATIC_DIR):
+assets_dir = STATIC_DIR / "assets"
+if assets_dir.exists():
     app.mount(
         "/assets",
-        StaticFiles(directory=os.path.join(STATIC_DIR, "assets")),
+        StaticFiles(directory=str(assets_dir)),
         name="assets",
     )
