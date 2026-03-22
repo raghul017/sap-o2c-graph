@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Background,
@@ -121,7 +121,6 @@ function GraphCanvas({
   const [visibleTypes, setVisibleTypes] = useState<Set<string>>(
     new Set(['BusinessPartner', 'SalesOrder', 'Delivery', 'BillingDocument', 'Payment']),
   );
-  const layoutRef = useRef<Record<string, { x: number; y: number }>>({});
   const nodeTypes = useMemo(() => ({ custom: CustomNode }), []);
   const typeCounts = useMemo(() => {
     if (!graphData) {
@@ -133,22 +132,17 @@ function GraphCanvas({
     }, {} as Record<string, number>);
   }, [graphData]);
 
-  useEffect(() => {
-    if (graphData) {
-      layoutRef.current = computeLayout(graphData.nodes);
-    }
-  }, [graphData]);
-
   const rfNodes = useMemo<Node[]>(() => {
     if (!graphData) {
       return [];
     }
+    const positions = computeLayout(graphData.nodes);
     return graphData.nodes
       .filter((node) => visibleTypes.has(node.type))
       .map((node) => ({
         id: node.id,
         type: 'custom',
-        position: layoutRef.current[node.id] ?? { x: 0, y: 0 },
+        position: positions[node.id] ?? { x: 0, y: 0 },
         data: {
           label: node.label,
           nodeType: node.type,
@@ -179,7 +173,9 @@ function GraphCanvas({
 
   useEffect(() => {
     if (rfNodes.length > 0) {
-      const timer = window.setTimeout(() => fitView({ padding: 0.15 }), 150);
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.1, includeHiddenNodes: false });
+      }, 300);
       return () => window.clearTimeout(timer);
     }
   }, [fitView, rfNodes.length]);
@@ -290,7 +286,8 @@ function GraphCanvas({
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
-        fitView
+        fitView={false}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
         minZoom={0.15}
         maxZoom={1.6}
         nodesDraggable={false}
