@@ -19,6 +19,8 @@ RUN cd frontend && npm install
 COPY . .
 RUN cd frontend && npm run build
 
+WORKDIR /app/backend
+
 EXPOSE 8080
 
-CMD cd backend && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
