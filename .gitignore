@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Raw dataset (too large, not needed on Railway)
+sap-o2c-data/
+
+# IMPORTANT: backend/data/o2c.db is NOT ignored
+# It must be committed so Railway has the database
+
+# Env files (keep example, ignore real)
+.env
+!.env.example
+backend/.env
+!backend/.env.example
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Frontend build (Railway builds this fresh)
+frontend/dist/
