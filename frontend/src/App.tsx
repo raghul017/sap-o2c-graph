@@ -1,10 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import {
-  Group as PanelGroup,
-  Panel,
-  Separator as PanelResizeHandle,
-} from 'react-resizable-panels';
 
 import { API_BASE } from './constants';
 import { ChatPanel } from './components/ChatPanel';
@@ -24,6 +19,8 @@ function App() {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState<GraphStats | null>(null);
+  const [chatWidth, setChatWidth] = useState(380);
+  const isDragging = useRef(false);
 
   useEffect(() => {
     const load = async () => {
@@ -43,6 +40,29 @@ function App() {
     void load();
   }, []);
 
+  useEffect(() => {
+    const onMove = (event: MouseEvent) => {
+      if (!isDragging.current) {
+        return;
+      }
+      const newWidth = window.innerWidth - event.clientX;
+      if (newWidth >= 280 && newWidth <= 700) {
+        setChatWidth(newWidth);
+      }
+    };
+
+    const onUp = () => {
+      isDragging.current = false;
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
   const handleHighlightNodes = (ids: string[]) => {
     setHighlightedNodeIds(new Set(ids));
     if (!ids.length) {
@@ -53,11 +73,15 @@ function App() {
     }, 5000);
   };
 
+  const handleMouseDown = () => {
+    isDragging.current = true;
+  };
+
   return (
     <div style={{ display: 'flex', height: '100vh', flexDirection: 'column', background: '#ffffff' }}>
       <Header stats={stats} />
-      <PanelGroup direction="horizontal" style={{ flex: 1, overflow: 'hidden' }}>
-        <Panel defaultSize={68} minSize={40}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
           {loading ? (
             <div
               style={{
@@ -81,21 +105,36 @@ function App() {
               highlightedNodeIds={highlightedNodeIds}
             />
           )}
-        </Panel>
-        <PanelResizeHandle
+        </div>
+        <div
+          onMouseDown={handleMouseDown}
           style={{
-            width: '4px',
+            width: 4,
             background: '#e5e7eb',
             cursor: 'col-resize',
+            flexShrink: 0,
           }}
-          onDragging={(isDragging: boolean) => {
-            document.body.style.cursor = isDragging ? 'col-resize' : '';
+          onMouseEnter={(event) => {
+            event.currentTarget.style.background = '#94a3b8';
+          }}
+          onMouseLeave={(event) => {
+            event.currentTarget.style.background = '#e5e7eb';
           }}
         />
-        <Panel defaultSize={32} minSize={25} maxSize={55}>
+        <div
+          style={{
+            width: chatWidth,
+            flexShrink: 0,
+            borderLeft: '1px solid #e5e7eb',
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#ffffff',
+            overflow: 'hidden',
+          }}
+        >
           <ChatPanel graphData={graphData} selectedNode={selectedNode} onHighlightNodes={handleHighlightNodes} />
-        </Panel>
-      </PanelGroup>
+        </div>
+      </div>
     </div>
   );
 }
