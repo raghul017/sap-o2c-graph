@@ -2,7 +2,9 @@
 
 **Live Demo:** [Railway URL]
 
-**Screenshot:** [Add screenshot here]
+**Screenshot:**
+
+![SAP O2C Graph Query System Demo](assets/Demo.png)
 
 ## System Overview
 This system models the SAP Order-to-Cash lifecycle as a graph and exposes two interaction modes:
