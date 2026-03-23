@@ -191,9 +191,7 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
         }}
       >
         <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Chat with Graph</div>
-        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-          {selectedNode ? selectedNode.label : 'Order to Cash'}
-        </div>
+        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Order to Cash</div>
       </div>
 
       <div style={{ padding: '16px 20px', display: 'flex', gap: 12, borderBottom: '1px solid #f9fafb' }}>
