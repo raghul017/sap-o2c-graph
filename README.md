@@ -4,7 +4,7 @@
 
 ## Screenshot
 
-![SAP O2C Graph Explorer](screenshot.png)
+![SAP O2C Graph Explorer](assets/Demo.png)
 
 ## System Overview
 
