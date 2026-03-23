@@ -74,6 +74,7 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [suggestedQueries, setSuggestedQueries] = useState<string[]>([]);
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchSuggestedQueries = async () => {
@@ -197,9 +198,18 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: '8px 0 16px' }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '0 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+        }}
+      >
         {!messages.length && suggestedQueries.length ? (
-          <div style={{ padding: '8px 20px 0' }}>
+          <div style={{ paddingTop: 12 }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {suggestedQueries.slice(0, 6).map((query) => (
                 <button
@@ -226,7 +236,7 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
         {messages.map((message) => {
           if (message.role === 'user') {
             return (
-              <div key={message.id} style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 20px', gap: 8 }}>
+              <div key={message.id} style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8, gap: 8 }}>
                 <div
                   style={{
                     background: '#111827',
@@ -259,8 +269,12 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
             );
           }
 
+          const isExpanded = expandedMessages.has(message.id);
+          const displayRows = isExpanded ? message.rows : message.rows?.slice(0, 8);
+          const remaining = (message.rows?.length ?? 0) - 8;
+
           return (
-            <div key={message.id} style={{ display: 'flex', padding: '10px 20px', gap: 12 }}>
+            <div key={message.id} style={{ display: 'flex', paddingTop: 10, gap: 12 }}>
               <AgentAvatar />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>Graph Agent</div>
@@ -289,7 +303,7 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
                         </tr>
                       </thead>
                       <tbody>
-                        {message.rows?.slice(0, 8).map((row, rowIndex) => (
+                        {displayRows?.map((row, rowIndex) => (
                           <tr key={`${message.id}-${rowIndex}`} style={{ background: rowIndex % 2 === 0 ? '#f9fafb' : '#ffffff' }}>
                             {row.map((cell: any, cellIndex: number) => (
                               <td key={`${message.id}-${rowIndex}-${cellIndex}`} style={{ padding: '4px 6px', fontSize: 11 }}>
@@ -300,9 +314,49 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
                         ))}
                       </tbody>
                     </table>
-                    {message.rows && message.rows.length > 8 ? (
-                      <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
-                        +{message.rows.length - 8} more results
+                    {!isExpanded && remaining > 0 ? (
+                      <div
+                        onClick={() =>
+                          setExpandedMessages((prev) => {
+                            const next = new Set(prev);
+                            next.add(message.id);
+                            return next;
+                          })
+                        }
+                        style={{
+                          fontSize: 12,
+                          color: '#6b7280',
+                          marginTop: 6,
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                        }}
+                        onMouseEnter={(event) => {
+                          event.currentTarget.style.color = '#111827';
+                        }}
+                        onMouseLeave={(event) => {
+                          event.currentTarget.style.color = '#6b7280';
+                        }}
+                      >
+                        +{remaining} more results ↓
+                      </div>
+                    ) : null}
+                    {isExpanded ? (
+                      <div
+                        onClick={() =>
+                          setExpandedMessages((prev) => {
+                            const next = new Set(prev);
+                            next.delete(message.id);
+                            return next;
+                          })
+                        }
+                        style={{
+                          fontSize: 12,
+                          color: '#6b7280',
+                          marginTop: 6,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ↑ Show less
                       </div>
                     ) : null}
                   </>
@@ -313,7 +367,7 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
         })}
 
         {loading ? (
-          <div style={{ display: 'flex', padding: '10px 20px', gap: 12 }}>
+          <div style={{ display: 'flex', paddingTop: 10, gap: 12 }}>
             <AgentAvatar />
             <div style={{ fontSize: 13, color: '#6b7280' }}>Analyzing your query...</div>
           </div>

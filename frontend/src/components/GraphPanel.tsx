@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   Handle,
@@ -68,7 +68,7 @@ function runForceLayout(
     .force('collide', forceCollide(18))
     .stop();
 
-  sim.tick(500);
+  sim.tick(200);
 
   const positions: Record<string, { x: number; y: number }> = {};
   simNodes.forEach((node) => {
@@ -77,7 +77,7 @@ function runForceLayout(
   return positions;
 }
 
-function CircularNode({ data }: { data: any }) {
+const CircularNode = memo(function CircularNode({ data }: { data: any }) {
   const size = data.isSelected ? 16 : 10;
 
   return (
@@ -101,7 +101,7 @@ function CircularNode({ data }: { data: any }) {
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
     </>
   );
-}
+});
 
 function GraphCanvas({
   graphData,
@@ -114,6 +114,9 @@ function GraphCanvas({
   const [visibleTypes, setVisibleTypes] = useState<Set<string>>(new Set());
   const [popupNodeId, setPopupNodeId] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 24, y: 72 });
+  const [layoutVersion, setLayoutVersion] = useState(0);
+  const layoutRef = useRef<Record<string, { x: number; y: number }>>({});
+  const layoutDoneRef = useRef(false);
   const popupRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -121,6 +124,15 @@ function GraphCanvas({
       setVisibleTypes(new Set(graphData.nodes.map((node) => node.type)));
     }
   }, [graphData, visibleTypes.size]);
+
+  useEffect(() => {
+    if (!graphData || layoutDoneRef.current) {
+      return;
+    }
+    layoutDoneRef.current = true;
+    layoutRef.current = runForceLayout(graphData.nodes, graphData.edges);
+    setLayoutVersion((version) => version + 1);
+  }, [graphData]);
 
   useEffect(() => {
     const onDocumentClick = (event: MouseEvent) => {
@@ -146,59 +158,54 @@ function GraphCanvas({
     }, {} as Record<string, number>);
   }, [graphData]);
 
-  const visibleGraph = useMemo(() => {
-    if (!graphData) {
-      return { nodes: [] as GraphNode[], edges: [] as GraphEdge[] };
-    }
-
-    const nodes = graphData.nodes.filter((node) => visibleTypes.has(node.type));
-    const nodeIds = new Set(nodes.map((node) => node.id));
-    const edges = graphData.edges.filter(
-      (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target),
-    );
-    return { nodes, edges };
-  }, [graphData, visibleTypes]);
-
   const rfNodes = useMemo<RFNode[]>(() => {
-    if (!visibleGraph.nodes.length) {
+    if (!graphData || layoutVersion === 0) {
       return [];
     }
-
-    const layout = runForceLayout(visibleGraph.nodes, visibleGraph.edges);
-    return visibleGraph.nodes.map((node) => ({
+    return graphData.nodes
+      .filter((node) => visibleTypes.has(node.type))
+      .map((node) => ({
       id: node.id,
       type: 'custom',
-      position: layout[node.id] ?? { x: 0, y: 0 },
+      position: layoutRef.current[node.id] ?? { x: 0, y: 0 },
       draggable: false,
       selectable: true,
       data: {
         label: node.label,
         nodeType: node.type,
         meta: node.data,
-        isSelected:
-          selectedNode?.id === node.id || highlightedNodeIds.has(node.id),
+        isSelected: selectedNode?.id === node.id || highlightedNodeIds.has(node.id),
       },
     }));
-  }, [visibleGraph, selectedNode, highlightedNodeIds]);
+  }, [graphData, layoutVersion, visibleTypes, selectedNode?.id, highlightedNodeIds]);
 
   const rfEdges = useMemo(
-    () =>
-      visibleGraph.edges.map((edge, index) => ({
+    () => {
+      if (!graphData) {
+        return [];
+      }
+      const visibleIds = new Set(
+        graphData.nodes.filter((node) => visibleTypes.has(node.type)).map((node) => node.id),
+      );
+      return graphData.edges
+        .filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target))
+        .map((edge, index) => ({
         id: `e-${index}-${edge.source}-${edge.target}`,
         source: edge.source,
         target: edge.target,
         style: {
           stroke: '#BFDBFE',
           strokeWidth: 1,
-          opacity: 0.6,
+          opacity: 0.5,
         },
         type: 'straight' as const,
-      })),
-    [visibleGraph.edges],
+      }));
+    },
+    [graphData, visibleTypes],
   );
 
   useEffect(() => {
-    if (rfNodes.length === 0) {
+    if (layoutVersion === 0 || rfNodes.length === 0) {
       return undefined;
     }
 
@@ -207,7 +214,7 @@ function GraphCanvas({
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [rfNodes.length, fitView]);
+  }, [layoutVersion, rfNodes.length, fitView]);
 
   const popupNode = useMemo(() => {
     if (!graphData || !popupNodeId) {
@@ -373,7 +380,7 @@ function GraphCanvas({
           <div style={{ marginTop: 12, color: '#6b7280' }}>
             Connections:{' '}
             {
-              visibleGraph.edges.filter(
+              rfEdges.filter(
                 (edge) => edge.source === popupNode.id || edge.target === popupNode.id,
               ).length
             }
@@ -387,8 +394,12 @@ function GraphCanvas({
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.1 }}
+        proOptions={{ hideAttribution: true }}
+        minZoom={0.1}
+        maxZoom={2}
         nodesDraggable={false}
         nodesConnectable={false}
+        elevateEdgesOnSelect={false}
         onlyRenderVisibleElements={true}
         style={{ background: '#F9FAFB' }}
         defaultEdgeOptions={{ type: 'straight' }}

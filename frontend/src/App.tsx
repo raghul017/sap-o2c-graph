@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import {
+  Group as PanelGroup,
+  Panel,
+  Separator as PanelResizeHandle,
+} from 'react-resizable-panels';
 
 import { API_BASE } from './constants';
 import { ChatPanel } from './components/ChatPanel';
@@ -51,8 +56,8 @@ function App() {
   return (
     <div style={{ display: 'flex', height: '100vh', flexDirection: 'column', background: '#ffffff' }}>
       <Header stats={stats} />
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
+      <PanelGroup direction="horizontal" style={{ flex: 1, overflow: 'hidden' }}>
+        <Panel defaultSize={75} minSize={40}>
           {loading ? (
             <div
               style={{
@@ -76,19 +81,21 @@ function App() {
               highlightedNodeIds={highlightedNodeIds}
             />
           )}
-        </div>
-        <div
+        </Panel>
+        <PanelResizeHandle
           style={{
-            width: '320px',
-            borderLeft: '1px solid #e5e7eb',
-            display: 'flex',
-            flexDirection: 'column',
-            background: '#ffffff',
+            width: '4px',
+            background: '#e5e7eb',
+            cursor: 'col-resize',
           }}
-        >
+          onDragging={(isDragging: boolean) => {
+            document.body.style.cursor = isDragging ? 'col-resize' : '';
+          }}
+        />
+        <Panel defaultSize={25} minSize={20} maxSize={50}>
           <ChatPanel graphData={graphData} selectedNode={selectedNode} onHighlightNodes={handleHighlightNodes} />
-        </div>
-      </div>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 }
