@@ -1,6 +1,6 @@
 # SAP O2C Graph Query System: graph exploration and NL→SQL over a 19-table SAP Order-to-Cash dataset
 
-**Live Demo:** https://web-production-0075e.up.railway.app
+**Live Demo:** https://graphflow.up.railway.app/
 
 ## Screenshot
 
