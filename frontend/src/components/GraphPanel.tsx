@@ -41,13 +41,13 @@ function runForceLayout(
   nodes: GraphNode[],
   edges: GraphEdge[],
 ): Record<string, { x: number; y: number }> {
-  const width = 1800;
-  const height = 1200;
+  const width = 3000;
+  const height = 2000;
 
   const simNodes: Array<{ id: string; x: number; y: number }> = nodes.map((node) => ({
     id: node.id,
-    x: width / 2 + (Math.random() - 0.5) * 200,
-    y: height / 2 + (Math.random() - 0.5) * 200,
+    x: width / 2 + (Math.random() - 0.5) * width * 0.8,
+    y: height / 2 + (Math.random() - 0.5) * height * 0.8,
   }));
 
   const idSet = new Set(nodes.map((node) => node.id));
@@ -60,15 +60,15 @@ function runForceLayout(
       'link',
       forceLink(simLinks)
         .id((d: any) => d.id)
-        .distance(80)
-        .strength(0.3),
+        .distance(150)
+        .strength(0.1),
     )
-    .force('charge', forceManyBody().strength(-120))
-    .force('center', forceCenter(width / 2, height / 2))
-    .force('collide', forceCollide(18))
+    .force('charge', forceManyBody().strength(-200))
+    .force('center', forceCenter(width / 2, height / 2).strength(0.02))
+    .force('collide', forceCollide(25))
     .stop();
 
-  sim.tick(200);
+  sim.tick(300);
 
   const positions: Record<string, { x: number; y: number }> = {};
   simNodes.forEach((node) => {
@@ -210,7 +210,7 @@ function GraphCanvas({
     }
 
     const timer = window.setTimeout(() => {
-      fitView({ padding: 0.1, includeHiddenNodes: false });
+      fitView({ padding: 0.08 });
     }, 300);
 
     return () => window.clearTimeout(timer);

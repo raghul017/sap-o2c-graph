@@ -57,7 +57,7 @@ function App() {
     <div style={{ display: 'flex', height: '100vh', flexDirection: 'column', background: '#ffffff' }}>
       <Header stats={stats} />
       <PanelGroup direction="horizontal" style={{ flex: 1, overflow: 'hidden' }}>
-        <Panel defaultSize={75} minSize={40}>
+        <Panel defaultSize={68} minSize={40}>
           {loading ? (
             <div
               style={{
@@ -92,7 +92,7 @@ function App() {
             document.body.style.cursor = isDragging ? 'col-resize' : '';
           }}
         />
-        <Panel defaultSize={25} minSize={20} maxSize={50}>
+        <Panel defaultSize={32} minSize={25} maxSize={55}>
           <ChatPanel graphData={graphData} selectedNode={selectedNode} onHighlightNodes={handleHighlightNodes} />
         </Panel>
       </PanelGroup>

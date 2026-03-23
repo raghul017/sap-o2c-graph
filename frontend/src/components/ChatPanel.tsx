@@ -174,7 +174,16 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
   };
 
   return (
-    <div style={{ display: 'flex', height: '100%', minHeight: 0, flexDirection: 'column', background: '#ffffff' }}>
+    <div
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        minWidth: 0,
+        background: '#ffffff',
+      }}
+    >
       <div
         style={{
           padding: '16px 20px 12px',
@@ -192,7 +201,17 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>Graph Agent</div>
           <div style={{ fontSize: 12, fontWeight: 400, color: '#6b7280' }}>Graph Agent</div>
-          <div style={{ fontSize: 13, color: '#374151', marginTop: 6, lineHeight: 1.5 }}>
+          <div
+            style={{
+              fontSize: 13,
+              color: '#374151',
+              marginTop: 6,
+              lineHeight: 1.5,
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              minWidth: 0,
+            }}
+          >
             Hi! I can help you analyze the <strong>Order to Cash</strong> process.
           </div>
         </div>
@@ -236,7 +255,7 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
         {messages.map((message) => {
           if (message.role === 'user') {
             return (
-              <div key={message.id} style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8, gap: 8 }}>
+              <div key={message.id} style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8, gap: 8, minWidth: 0 }}>
                 <div
                   style={{
                     background: '#111827',
@@ -246,6 +265,9 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
                     fontSize: 13,
                     maxWidth: '80%',
                     lineHeight: 1.5,
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                    minWidth: 0,
                   }}
                 >
                   {message.content}
@@ -274,11 +296,22 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
           const remaining = (message.rows?.length ?? 0) - 8;
 
           return (
-            <div key={message.id} style={{ display: 'flex', paddingTop: 10, gap: 12 }}>
+            <div key={message.id} style={{ display: 'flex', paddingTop: 10, gap: 12, minWidth: 0 }}>
               <AgentAvatar />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>Graph Agent</div>
-                <div style={{ fontSize: 13, color: '#374151', marginTop: 6, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: '#374151',
+                    marginTop: 6,
+                    lineHeight: 1.55,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                    minWidth: 0,
+                  }}
+                >
                   {message.content}
                 </div>
                 {message.answer_type === 'data' && message.columns && message.columns.length > 0 ? (
