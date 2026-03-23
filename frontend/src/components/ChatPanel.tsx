@@ -3,7 +3,6 @@ import axios from 'axios';
 
 import { API_BASE } from '../constants';
 import { ChatMessage, GraphData, GraphNode } from '../types';
-import { ResultsTable } from './ResultsTable';
 
 interface SuggestedQueriesResponse {
   queries: string[];
@@ -48,12 +47,33 @@ function createMessageId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function AgentAvatar() {
+  return (
+    <div
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: '50%',
+        background: '#111827',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white',
+        fontSize: 14,
+        fontWeight: 700,
+        flexShrink: 0,
+      }}
+    >
+      G
+    </div>
+  );
+}
+
 export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [suggestedQueries, setSuggestedQueries] = useState<string[]>([]);
-  const [expandedSqlIds, setExpandedSqlIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchSuggestedQueries = async () => {
@@ -64,17 +84,20 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
         console.error('Failed to load suggested queries', error);
       }
     };
-    fetchSuggestedQueries();
+    void fetchSuggestedQueries();
   }, []);
 
   const historyForApi = useMemo(
     () =>
-      messages.slice(-10).flatMap((message) => {
-        if (message.role === 'user') {
-          return [{ role: 'user', content: message.content }];
-        }
-        return [{ role: 'assistant', content: assistantHistoryContent(message) }];
-      }).slice(-6),
+      messages
+        .slice(-10)
+        .flatMap((message) => {
+          if (message.role === 'user') {
+            return [{ role: 'user', content: message.content }];
+          }
+          return [{ role: 'assistant', content: assistantHistoryContent(message) }];
+        })
+        .slice(-6),
     [messages],
   );
 
@@ -105,7 +128,10 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
       const assistantMessage: ChatMessage = {
         id: createMessageId(),
         role: 'assistant',
-        content: payload.explanation || payload.message || 'No explanation returned.',
+        content:
+          payload.answer_type === 'off_topic'
+            ? 'This system is designed to answer questions related to the provided dataset only.'
+            : payload.explanation || payload.message || 'No response returned.',
         sql: payload.sql || undefined,
         columns: payload.columns,
         rows: payload.rows,
@@ -146,98 +172,139 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
     await submitQuery(input);
   };
 
-  const conversationStarted = messages.length > 0;
-
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-800" style={{ background: '#161B27' }}>
-      <div className="border-b border-slate-800 px-5 py-4">
-        <div className="text-sm font-semibold text-slate-100">Chat</div>
-        <div className="mt-1 text-xs text-slate-400">
-          {selectedNode ? `Selected node: ${selectedNode.label}` : 'Ask questions about the O2C graph and SQL dataset.'}
+    <div style={{ display: 'flex', height: '100%', minHeight: 0, flexDirection: 'column', background: '#ffffff' }}>
+      <div
+        style={{
+          padding: '16px 20px 12px',
+          borderBottom: '1px solid #f3f4f6',
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Chat with Graph</div>
+        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+          {selectedNode ? selectedNode.label : 'Order to Cash'}
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-auto px-5 py-4 scrollbar-thin">
-        {!conversationStarted ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-300">
-            Ask about orders, deliveries, billing, payments, products, plants, or customers.
+      <div style={{ padding: '16px 20px', display: 'flex', gap: 12, borderBottom: '1px solid #f9fafb' }}>
+        <AgentAvatar />
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>Graph Agent</div>
+          <div style={{ fontSize: 12, fontWeight: 400, color: '#6b7280' }}>Graph Agent</div>
+          <div style={{ fontSize: 13, color: '#374151', marginTop: 6, lineHeight: 1.5 }}>
+            Hi! I can help you analyze the <strong>Order to Cash</strong> process.
+          </div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflow: 'auto', padding: '8px 0 16px' }}>
+        {!messages.length && suggestedQueries.length ? (
+          <div style={{ padding: '8px 20px 0' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {suggestedQueries.slice(0, 6).map((query) => (
+                <button
+                  key={query}
+                  onClick={() => void submitQuery(query)}
+                  style={{
+                    border: '1px solid #e5e7eb',
+                    background: '#ffffff',
+                    color: '#4b5563',
+                    borderRadius: 999,
+                    padding: '6px 10px',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  {query}
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
 
         {messages.map((message) => {
           if (message.role === 'user') {
             return (
-              <div key={message.id} className="flex justify-end">
-                <div className="max-w-[80%] rounded-lg bg-blue-700 px-4 py-3 text-[13px] text-white">
+              <div key={message.id} style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 20px', gap: 8 }}>
+                <div
+                  style={{
+                    background: '#111827',
+                    color: '#ffffff',
+                    borderRadius: '12px 12px 2px 12px',
+                    padding: '10px 14px',
+                    fontSize: 13,
+                    maxWidth: '80%',
+                    lineHeight: 1.5,
+                  }}
+                >
                   {message.content}
+                </div>
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    background: '#e5e7eb',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 11,
+                  }}
+                >
+                  U
                 </div>
               </div>
             );
           }
 
-          const sqlExpanded = expandedSqlIds.has(message.id);
-          const cardTone =
-            message.answer_type === 'off_topic'
-              ? 'text-amber-200'
-              : message.answer_type === 'error'
-                ? 'text-rose-100'
-                : 'text-slate-100';
-
           return (
-            <div key={message.id} className="flex justify-start">
-              <div
-                className={`max-w-[95%] rounded-[10px] border px-[14px] py-[14px] text-sm ${cardTone}`}
-                style={
-                  message.answer_type === 'off_topic'
-                    ? { background: '#1C1508', border: '1px solid #92400E' }
-                    : message.answer_type === 'error'
-                      ? { background: '#2A1318', border: '1px solid #7F1D1D' }
-                      : { background: '#161B27', border: '1px solid #1E2D3D' }
-                }
-              >
-                <div className="whitespace-pre-wrap">{message.content}</div>
-                {message.answer_type === 'data' ? (
+            <div key={message.id} style={{ display: 'flex', padding: '10px 20px', gap: 12 }}>
+              <AgentAvatar />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>Graph Agent</div>
+                <div style={{ fontSize: 13, color: '#374151', marginTop: 6, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                  {message.content}
+                </div>
+                {message.answer_type === 'data' && message.columns && message.columns.length > 0 ? (
                   <>
-                    <div className="mt-3 inline-flex rounded-md bg-slate-800/80 px-2.5 py-1 text-[11px] text-slate-300">
-                      {message.count ?? 0} results found
-                    </div>
-                    {message.sql ? (
-                      <div className="mt-3">
-                        <button
-                          className="text-xs font-medium text-sky-300 hover:text-sky-200"
-                          onClick={() =>
-                            setExpandedSqlIds((current) => {
-                              const next = new Set(current);
-                              if (next.has(message.id)) {
-                                next.delete(message.id);
-                              } else {
-                                next.add(message.id);
-                              }
-                              return next;
-                            })
-                          }
-                        >
-                          {sqlExpanded ? 'Hide SQL' : 'Show SQL'}
-                        </button>
-                        {sqlExpanded ? (
-                          <pre
-                            className="mt-2 overflow-auto rounded-lg p-3 scrollbar-thin"
-                            style={{
-                              background: '#0D1117',
-                              border: '1px solid #21262D',
-                              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                              fontSize: '11px',
-                              color: '#79C0FF',
-                            }}
-                          >
-                            <code>{message.sql}</code>
-                          </pre>
-                        ) : null}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, fontSize: 11 }}>
+                      <thead>
+                        <tr>
+                          {message.columns.map((column) => (
+                            <th
+                              key={column}
+                              style={{
+                                textAlign: 'left',
+                                padding: '4px 6px',
+                                borderBottom: '1px solid #e5e7eb',
+                                color: '#6b7280',
+                                fontWeight: 500,
+                              }}
+                            >
+                              {column}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {message.rows?.slice(0, 8).map((row, rowIndex) => (
+                          <tr key={`${message.id}-${rowIndex}`} style={{ background: rowIndex % 2 === 0 ? '#f9fafb' : '#ffffff' }}>
+                            {row.map((cell: any, cellIndex: number) => (
+                              <td key={`${message.id}-${rowIndex}-${cellIndex}`} style={{ padding: '4px 6px', fontSize: 11 }}>
+                                {String(cell ?? '').slice(0, 25)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {message.rows && message.rows.length > 8 ? (
+                      <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+                        +{message.rows.length - 8} more results
                       </div>
                     ) : null}
-                    <div className="mt-3">
-                      <ResultsTable columns={message.columns} rows={message.rows} count={message.count} />
-                    </div>
                   </>
                 ) : null}
               </div>
@@ -246,84 +313,79 @@ export function ChatPanel({ graphData, selectedNode, onHighlightNodes }: ChatPan
         })}
 
         {loading ? (
-          <div className="flex justify-start">
-            <div className="rounded-lg border px-4 py-3 text-sm text-slate-300" style={{ background: '#161B27', border: '1px solid #1E2D3D' }}>
-              <span className="inline-flex items-center gap-1">
-                Analyzing your query
-                <span className="animate-pulse">.</span>
-                <span className="animate-pulse [animation-delay:150ms]">.</span>
-                <span className="animate-pulse [animation-delay:300ms]">.</span>
-              </span>
-            </div>
+          <div style={{ display: 'flex', padding: '10px 20px', gap: 12 }}>
+            <AgentAvatar />
+            <div style={{ fontSize: 13, color: '#6b7280' }}>Analyzing your query...</div>
           </div>
         ) : null}
       </div>
 
-      {!conversationStarted && suggestedQueries.length ? (
-        <div className="border-t border-slate-800 px-5 py-3">
-          <div className="mb-2 text-[11px] uppercase tracking-[0.22em] text-slate-500">Suggested Queries</div>
-          <div className="flex flex-wrap gap-2">
-            {suggestedQueries.map((query) => (
-              <button
-                key={query}
-                className="rounded-md px-3 py-1.5 text-[12px] transition"
-                style={{
-                  background: '#1E2433',
-                  border: '1px solid #2D3748',
-                  color: '#94A3B8',
-                }}
-                onClick={() => {
-                  setInput(query);
-                  void submitQuery(query);
-                }}
-                onMouseEnter={(event) => {
-                  event.currentTarget.style.borderColor = '#3B82F6';
-                  event.currentTarget.style.color = '#E2E8F0';
-                }}
-                onMouseLeave={(event) => {
-                  event.currentTarget.style.borderColor = '#2D3748';
-                  event.currentTarget.style.color = '#94A3B8';
-                }}
-              >
-                {query}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <div
+        style={{
+          padding: '6px 20px',
+          fontSize: 11,
+          color: '#6b7280',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          borderTop: '1px solid #f3f4f6',
+        }}
+      >
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
+        Graph Agent is awaiting instructions
+      </div>
 
-      <form className="border-t border-slate-800 p-4" onSubmit={onSubmit}>
-        <div className="flex items-center gap-3">
-          <input
-            className="h-12 flex-1 rounded-lg px-4 text-[14px] outline-none transition placeholder:text-slate-500"
-            style={{
-              background: '#0F1117',
-              border: '1px solid #2D3748',
-              color: '#E2E8F0',
-            }}
-            placeholder="Ask about orders, billing, products, payments..."
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-          />
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="h-12 rounded-lg px-5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-            style={{ background: loading || !input.trim() ? undefined : '#3B82F6' }}
-            onMouseEnter={(event) => {
-              if (!loading && input.trim()) {
-                event.currentTarget.style.background = '#2563EB';
-              }
-            }}
-            onMouseLeave={(event) => {
-              if (!loading && input.trim()) {
-                event.currentTarget.style.background = '#3B82F6';
-              }
-            }}
-          >
-            Send
-          </button>
-        </div>
+      <form
+        onSubmit={onSubmit}
+        style={{
+          padding: '12px 16px',
+          borderTop: '1px solid #f3f4f6',
+          display: 'flex',
+          gap: 8,
+          alignItems: 'flex-end',
+        }}
+      >
+        <textarea
+          placeholder="Analyze anything"
+          style={{
+            flex: 1,
+            border: '1px solid #e5e7eb',
+            borderRadius: 8,
+            padding: '8px 12px',
+            fontSize: 13,
+            resize: 'none',
+            minHeight: 36,
+            maxHeight: 120,
+            fontFamily: 'inherit',
+            outline: 'none',
+            color: '#111827',
+          }}
+          rows={1}
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              void submitQuery(input);
+            }
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            background: '#111827',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: 8,
+            padding: '8px 14px',
+            fontSize: 13,
+            cursor: 'pointer',
+            height: 36,
+          }}
+          disabled={loading || !input.trim()}
+        >
+          Send
+        </button>
       </form>
     </div>
   );

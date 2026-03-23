@@ -1,29 +1,30 @@
-export function Header({ stats }: { stats: any }) {
+function Header({ stats }: { stats: any }) {
   return (
     <header
-      className="flex items-center justify-between px-6 py-3"
       style={{
-        background: '#161B27',
-        borderBottom: '1px solid #1E2D3D',
-        minHeight: '52px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '10px 20px',
+        borderBottom: '1px solid #e5e7eb',
+        background: '#ffffff',
+        minHeight: '48px',
       }}
     >
-      <div className="flex items-center gap-3">
-        <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-sm font-semibold tracking-wide text-slate-100">SAP O2C Graph Explorer</span>
-        <span className="font-mono text-xs text-slate-500">Graph + SQL Copilot</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 13, color: '#6b7280' }}>Mapping</span>
+        <span style={{ color: '#d1d5db' }}>/</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
+          Order to Cash
+        </span>
       </div>
       {stats && (
-        <div className="flex items-center gap-4 text-xs text-slate-400">
-          <span>{stats.total_nodes?.toLocaleString()} nodes</span>
-          <span className="text-slate-600">·</span>
-          <span>{stats.total_edges?.toLocaleString()} edges</span>
-          <span className="text-slate-600">·</span>
-          <span>{stats.by_type?.SalesOrder} orders</span>
-          <span className="text-slate-600">·</span>
-          <span>{stats.by_type?.BusinessPartner} customers</span>
+        <div style={{ fontSize: 12, color: '#9ca3af' }}>
+          {stats.total_nodes} nodes · {stats.total_edges} edges
         </div>
       )}
     </header>
   );
 }
+
+export { Header };

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Group, Panel, Separator } from 'react-resizable-panels';
 
 import { API_BASE } from './constants';
 import { ChatPanel } from './components/ChatPanel';
@@ -36,71 +35,60 @@ function App() {
         setLoading(false);
       }
     };
-    load();
+    void load();
   }, []);
 
   const handleHighlightNodes = (ids: string[]) => {
+    setHighlightedNodeIds(new Set(ids));
     if (!ids.length) {
       return;
     }
-    setHighlightedNodeIds(new Set(ids));
     window.setTimeout(() => {
       setHighlightedNodeIds(new Set());
     }, 5000);
   };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-transparent text-slate-100">
+    <div style={{ display: 'flex', height: '100vh', flexDirection: 'column', background: '#ffffff' }}>
       <Header stats={stats} />
-      <main className="min-h-0 flex-1 overflow-hidden p-4">
-        <Group direction="horizontal" style={{ flex: 1, overflow: 'hidden' }}>
-          <Panel defaultSize={60} minSize={30} maxSize={80}>
-            <div className="h-full min-h-0 pr-2">
-              {loading ? (
-                <div className="flex h-full items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/50 text-sm text-slate-400">
-                  Loading graph explorer...
-                </div>
-              ) : (
-                <GraphPanel
-                  graphData={graphData}
-                  setGraphData={setGraphData}
-                  selectedNode={selectedNode}
-                  setSelectedNode={setSelectedNode}
-                  highlightedNodeIds={highlightedNodeIds}
-                />
-              )}
-            </div>
-          </Panel>
-          <Separator
-            style={{
-              width: '4px',
-              background: '#1E2D3D',
-              cursor: 'col-resize',
-              transition: 'background 0.2s',
-              position: 'relative',
-            }}
-            className="group"
-          >
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          {loading ? (
             <div
               style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '1px',
-                height: '40px',
-                background: '#475569',
+                display: 'flex',
+                height: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#6b7280',
+                fontSize: 13,
+                background: '#f9fafb',
               }}
-              className="group-hover:bg-[#3B82F6]"
-            />
-          </Separator>
-          <Panel defaultSize={40} minSize={20} maxSize={70}>
-            <div className="h-full min-h-0 pl-2">
-              <ChatPanel graphData={graphData} selectedNode={selectedNode} onHighlightNodes={handleHighlightNodes} />
+            >
+              Loading graph...
             </div>
-          </Panel>
-        </Group>
-      </main>
+          ) : (
+            <GraphPanel
+              graphData={graphData}
+              setGraphData={setGraphData}
+              selectedNode={selectedNode}
+              setSelectedNode={setSelectedNode}
+              highlightedNodeIds={highlightedNodeIds}
+            />
+          )}
+        </div>
+        <div
+          style={{
+            width: '320px',
+            borderLeft: '1px solid #e5e7eb',
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#ffffff',
+          }}
+        >
+          <ChatPanel graphData={graphData} selectedNode={selectedNode} onHighlightNodes={handleHighlightNodes} />
+        </div>
+      </div>
     </div>
   );
 }

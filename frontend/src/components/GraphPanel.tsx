@@ -1,17 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
-  Controls,
-  Node,
+  Handle,
+  Position,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  type Node as RFNode,
 } from '@xyflow/react';
+import {
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+} from 'd3-force';
 import '@xyflow/react/dist/style.css';
 
-import { API_BASE, NODE_COLORS, NODE_TYPE_ORDER } from '../constants';
-import { GraphData, GraphNode, NodeNeighbors } from '../types';
+import { GraphData, GraphEdge, GraphNode } from '../types';
 
 interface GraphPanelProps {
   graphData: GraphData | null;
@@ -21,110 +27,118 @@ interface GraphPanelProps {
   highlightedNodeIds: Set<string>;
 }
 
-const TYPE_X: Record<string, number> = {
-  BusinessPartner: 0,
-  SalesOrder: 220,
-  SalesOrderItem: 440,
-  Delivery: 660,
-  BillingDocument: 880,
-  JournalEntry: 1100,
-  Payment: 1320,
-  Product: 440,
-  Plant: 660,
-};
+function getNodeColor(nodeType: string): string {
+  const blue = ['BusinessPartner', 'SalesOrder', 'Product', 'Plant'];
+  return blue.includes(nodeType) ? '#93C5FD' : '#FCA5A5';
+}
 
-const TYPE_Y_OFFSET: Record<string, number> = {
-  BusinessPartner: 0,
-  SalesOrder: 0,
-  SalesOrderItem: 0,
-  Delivery: 0,
-  BillingDocument: 0,
-  JournalEntry: 0,
-  Payment: 0,
-  Product: 900,
-  Plant: 900,
-};
+function getNodeBorderColor(nodeType: string): string {
+  const blue = ['BusinessPartner', 'SalesOrder', 'Product', 'Plant'];
+  return blue.includes(nodeType) ? '#3B82F6' : '#EF4444';
+}
 
-function computeLayout(nodes: GraphNode[]): Record<string, { x: number; y: number }> {
+function runForceLayout(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+): Record<string, { x: number; y: number }> {
+  const width = 1800;
+  const height = 1200;
+
+  const simNodes: Array<{ id: string; x: number; y: number }> = nodes.map((node) => ({
+    id: node.id,
+    x: width / 2 + (Math.random() - 0.5) * 200,
+    y: height / 2 + (Math.random() - 0.5) * 200,
+  }));
+
+  const idSet = new Set(nodes.map((node) => node.id));
+  const simLinks = edges
+    .filter((edge) => idSet.has(edge.source) && idSet.has(edge.target))
+    .map((edge) => ({ source: edge.source, target: edge.target }));
+
+  const sim = forceSimulation(simNodes)
+    .force(
+      'link',
+      forceLink(simLinks)
+        .id((d: any) => d.id)
+        .distance(80)
+        .strength(0.3),
+    )
+    .force('charge', forceManyBody().strength(-120))
+    .force('center', forceCenter(width / 2, height / 2))
+    .force('collide', forceCollide(18))
+    .stop();
+
+  sim.tick(500);
+
   const positions: Record<string, { x: number; y: number }> = {};
-  const typeCounters: Record<string, number> = {};
-  const Y_GAP = 90;
-
-  for (const node of nodes) {
-    const t = node.type;
-    if (typeCounters[t] === undefined) {
-      typeCounters[t] = 0;
-    }
-    const idx = typeCounters[t]++;
-    positions[node.id] = {
-      x: TYPE_X[t] ?? 0,
-      y: (TYPE_Y_OFFSET[t] ?? 0) + idx * Y_GAP,
-    };
-  }
-
+  simNodes.forEach((node) => {
+    positions[node.id] = { x: node.x, y: node.y };
+  });
   return positions;
 }
 
-function CustomNode({ data }: { data: any }) {
+function CircularNode({ data }: { data: any }) {
+  const size = data.isSelected ? 16 : 10;
+
   return (
-    <div
-      style={{
-        background: `${NODE_COLORS[data.nodeType] ?? '#64748B'}12`,
-        border: `1px solid ${(NODE_COLORS[data.nodeType] ?? '#64748B')}50`,
-        borderRadius: '6px',
-        padding: '6px 10px',
-        minWidth: '110px',
-        maxWidth: '150px',
-        cursor: 'pointer',
-        boxShadow: data.isHighlighted ? `0 0 0 2px ${NODE_COLORS[data.nodeType] ?? '#64748B'}` : 'none',
-        outline: data.isSelected ? `2px solid ${NODE_COLORS[data.nodeType] ?? '#64748B'}` : 'none',
-      }}
-      className="transition-all duration-200"
-    >
+    <>
+      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       <div
+        title={data.label}
         style={{
-          color: NODE_COLORS[data.nodeType] ?? '#64748B',
-          fontSize: '8px',
-          fontWeight: 700,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          opacity: 0.8,
-          marginBottom: '2px',
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: getNodeColor(data.nodeType),
+          border: `2px solid ${getNodeBorderColor(data.nodeType)}`,
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+          boxShadow: data.isSelected
+            ? `0 0 0 3px ${getNodeBorderColor(data.nodeType)}40`
+            : 'none',
         }}
-      >
-        {data.nodeType}
-      </div>
-      <div
-        style={{
-          color: '#CBD5E1',
-          fontSize: '11px',
-          fontWeight: 500,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {data.label}
-      </div>
-    </div>
+      />
+      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+    </>
   );
 }
 
 function GraphCanvas({
   graphData,
-  setGraphData,
   selectedNode,
   setSelectedNode,
   highlightedNodeIds,
 }: GraphPanelProps) {
   const { fitView } = useReactFlow();
-  const [visibleTypes, setVisibleTypes] = useState<Set<string>>(
-    new Set(['BusinessPartner', 'SalesOrder', 'Delivery', 'BillingDocument', 'Payment']),
-  );
-  const nodeTypes = useMemo(() => ({ custom: CustomNode }), []);
+  const [showFilters, setShowFilters] = useState(false);
+  const [visibleTypes, setVisibleTypes] = useState<Set<string>>(new Set());
+  const [popupNodeId, setPopupNodeId] = useState<string | null>(null);
+  const [popupPosition, setPopupPosition] = useState({ x: 24, y: 72 });
+  const popupRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (graphData && visibleTypes.size === 0) {
+      setVisibleTypes(new Set(graphData.nodes.map((node) => node.type)));
+    }
+  }, [graphData, visibleTypes.size]);
+
+  useEffect(() => {
+    const onDocumentClick = (event: MouseEvent) => {
+      if (!popupRef.current) {
+        return;
+      }
+      if (!popupRef.current.contains(event.target as globalThis.Node)) {
+        setPopupNodeId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, []);
+
   const typeCounts = useMemo(() => {
     if (!graphData) {
-      return {};
+      return {} as Record<string, number>;
     }
     return graphData.nodes.reduce((acc, node) => {
       acc[node.type] = (acc[node.type] || 0) + 1;
@@ -132,219 +146,267 @@ function GraphCanvas({
     }, {} as Record<string, number>);
   }, [graphData]);
 
-  const rfNodes = useMemo<Node[]>(() => {
+  const visibleGraph = useMemo(() => {
     if (!graphData) {
-      return [];
+      return { nodes: [] as GraphNode[], edges: [] as GraphEdge[] };
     }
-    const positions = computeLayout(graphData.nodes);
-    return graphData.nodes
-      .filter((node) => visibleTypes.has(node.type))
-      .map((node) => ({
-        id: node.id,
-        type: 'custom',
-        position: positions[node.id] ?? { x: 0, y: 0 },
-        data: {
-          label: node.label,
-          nodeType: node.type,
-          meta: node.data,
-          isHighlighted: highlightedNodeIds.has(node.id),
-          isSelected: selectedNode?.id === node.id,
-        },
-      }));
-  }, [graphData, visibleTypes, highlightedNodeIds, selectedNode]);
 
-  const rfEdges = useMemo(() => {
-    if (!graphData) {
+    const nodes = graphData.nodes.filter((node) => visibleTypes.has(node.type));
+    const nodeIds = new Set(nodes.map((node) => node.id));
+    const edges = graphData.edges.filter(
+      (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target),
+    );
+    return { nodes, edges };
+  }, [graphData, visibleTypes]);
+
+  const rfNodes = useMemo<RFNode[]>(() => {
+    if (!visibleGraph.nodes.length) {
       return [];
     }
-    const visibleNodeIds = new Set(rfNodes.map((node) => node.id));
-    return graphData.edges
-      .filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
-      .map((edge, index) => ({
-        id: `e-${edge.source}-${edge.target}-${edge.relation}-${index}`,
+
+    const layout = runForceLayout(visibleGraph.nodes, visibleGraph.edges);
+    return visibleGraph.nodes.map((node) => ({
+      id: node.id,
+      type: 'custom',
+      position: layout[node.id] ?? { x: 0, y: 0 },
+      draggable: false,
+      selectable: true,
+      data: {
+        label: node.label,
+        nodeType: node.type,
+        meta: node.data,
+        isSelected:
+          selectedNode?.id === node.id || highlightedNodeIds.has(node.id),
+      },
+    }));
+  }, [visibleGraph, selectedNode, highlightedNodeIds]);
+
+  const rfEdges = useMemo(
+    () =>
+      visibleGraph.edges.map((edge, index) => ({
+        id: `e-${index}-${edge.source}-${edge.target}`,
         source: edge.source,
         target: edge.target,
-        label: edge.relation,
-        animated: edge.relation === 'SETTLED_BY',
-        style: { stroke: '#64748B', strokeWidth: 1.5 },
-        labelStyle: { fontSize: 10, fill: '#94A3B8' },
-      }));
-  }, [graphData, rfNodes]);
-
-  useEffect(() => {
-    if (rfNodes.length > 0) {
-      const timer = setTimeout(() => {
-        fitView({ padding: 0.1, includeHiddenNodes: false });
-      }, 300);
-      return () => window.clearTimeout(timer);
-    }
-  }, [fitView, rfNodes.length]);
-
-  const mergeGraphData = useCallback((neighbors: NodeNeighbors) => {
-    setGraphData((current) => {
-      if (!current) {
-        return current;
-      }
-      const nodeMap = new Map(current.nodes.map((node) => [node.id, node]));
-      const edgeMap = new Map(current.edges.map((edge) => [`${edge.source}|${edge.target}|${edge.relation}`, edge]));
-
-      if (neighbors.node) {
-        nodeMap.set(neighbors.node.id, neighbors.node);
-      }
-
-      neighbors.neighbors.forEach((neighbor) => {
-        nodeMap.set(neighbor.node.id, neighbor.node);
-        const edge =
-          neighbor.direction === 'out'
-            ? { source: neighbors.node.id, target: neighbor.node.id, relation: neighbor.relation }
-            : { source: neighbor.node.id, target: neighbors.node.id, relation: neighbor.relation };
-        edgeMap.set(`${edge.source}|${edge.target}|${edge.relation}`, edge);
-      });
-
-      return {
-        nodes: Array.from(nodeMap.values()),
-        edges: Array.from(edgeMap.values()),
-      };
-    });
-  }, [setGraphData]);
-
-  const onNodeClick = useCallback(
-    async (_event: React.MouseEvent, rfNode: Node) => {
-      if (!graphData) {
-        return;
-      }
-      const originalNode = graphData.nodes.find((node) => node.id === rfNode.id) ?? null;
-      setSelectedNode(originalNode);
-
-      try {
-        const res = await axios.get<NodeNeighbors>(
-          `${API_BASE}/api/graph/expand/${encodeURIComponent(rfNode.id)}`,
-        );
-        mergeGraphData(res.data);
-      } catch (error) {
-        console.error('Failed to expand node', error);
-      }
-    },
-    [graphData, mergeGraphData, setSelectedNode],
+        style: {
+          stroke: '#BFDBFE',
+          strokeWidth: 1,
+          opacity: 0.6,
+        },
+        type: 'straight' as const,
+      })),
+    [visibleGraph.edges],
   );
 
-  const toggleType = useCallback((type: string) => {
-    setVisibleTypes((current) => {
-      const next = new Set(current);
-      if (next.has(type)) {
-        next.delete(type);
-      } else {
-        next.add(type);
-      }
-      return next;
-    });
-  }, []);
+  useEffect(() => {
+    if (rfNodes.length === 0) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      fitView({ padding: 0.1, includeHiddenNodes: false });
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [rfNodes.length, fitView]);
+
+  const popupNode = useMemo(() => {
+    if (!graphData || !popupNodeId) {
+      return null;
+    }
+    return graphData.nodes.find((node) => node.id === popupNodeId) ?? null;
+  }, [graphData, popupNodeId]);
+
+  const popupFields = useMemo(() => {
+    if (!popupNode) {
+      return [] as Array<[string, string]>;
+    }
+    return Object.entries(popupNode.data || {})
+      .filter(([, value]) => value !== null && value !== undefined && value !== '')
+      .map(([key, value]) => [key, String(value)]);
+  }, [popupNode]);
+
+  const nodeTypes = useMemo(() => ({ custom: CircularNode }), []);
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/50">
-      <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+    <div style={{ position: 'relative', height: '100%', background: '#F9FAFB' }}>
+      <div
+        style={{
+          position: 'absolute',
+          top: 12,
+          left: 12,
+          zIndex: 10,
+          display: 'flex',
+          gap: 8,
+        }}
+      >
         <button
-          className="rounded-md border border-slate-700 bg-slate-900/90 px-3 py-1 text-xs text-slate-200"
-          onClick={() => fitView({ duration: 300, padding: 0.2 })}
+          onClick={() => fitView({ padding: 0.1 })}
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 6,
+            padding: '6px 12px',
+            fontSize: 12,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
         >
-          Reset View
+          ⤢ Minimize
         </button>
         <button
-          className="rounded-md border border-slate-700 bg-slate-900/90 px-3 py-1 text-xs text-slate-200"
-          onClick={() => fitView({ duration: 300, padding: 0.2 })}
+          onClick={() => setShowFilters((current) => !current)}
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 6,
+            padding: '6px 12px',
+            fontSize: 12,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
         >
-          Fit All
+          ◧ {showFilters ? 'Hide' : 'Show'} Granular Overlay
         </button>
       </div>
 
-      <div className="absolute left-4 top-16 z-10 flex max-w-[calc(100%-2rem)] flex-wrap gap-2">
-        {NODE_TYPE_ORDER.map((type) => {
-          const active = visibleTypes.has(type);
-          return (
+      {showFilters ? (
+        <div
+          style={{
+            position: 'absolute',
+            top: 52,
+            left: 12,
+            zIndex: 10,
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+            maxWidth: 720,
+          }}
+        >
+          {Object.entries(typeCounts).map(([type, count]) => {
+            const active = visibleTypes.has(type);
+            return (
+              <button
+                key={type}
+                onClick={() => {
+                  setVisibleTypes((current) => {
+                    const next = new Set(current);
+                    if (next.has(type)) {
+                      next.delete(type);
+                    } else {
+                      next.add(type);
+                    }
+                    return next;
+                  });
+                }}
+                style={{
+                  background: active ? '#ffffff' : '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  color: active ? '#111827' : '#6b7280',
+                  borderRadius: 999,
+                  padding: '4px 10px',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                {type} ({count})
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {popupNode ? (
+        <div
+          ref={popupRef}
+          style={{
+            position: 'absolute',
+            left: Math.max(12, popupPosition.x),
+            top: Math.max(64, popupPosition.y),
+            background: '#ffffff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 8,
+            padding: '16px',
+            minWidth: 280,
+            maxWidth: 340,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+            zIndex: 1000,
+            fontSize: 13,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 10,
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>
+              {popupNode.type}
+            </div>
             <button
-              key={type}
-              className="transition"
+              onClick={() => setPopupNodeId(null)}
               style={{
-                background: active ? `${NODE_COLORS[type]}18` : 'transparent',
-                border: active ? `1px solid ${NODE_COLORS[type]}60` : '1px solid #2D3748',
-                color: active ? NODE_COLORS[type] : '#475569',
-                fontSize: '11px',
-                padding: '3px 10px',
-                borderRadius: '4px',
+                border: 'none',
+                background: 'transparent',
                 cursor: 'pointer',
-                fontWeight: 500,
+                color: '#9ca3af',
               }}
-              onClick={() => toggleType(type)}
             >
-              {type} ({typeCounts[type] ?? 0})
+              ×
             </button>
-          );
-        })}
-      </div>
+          </div>
+          {popupFields.slice(0, 8).map(([key, value]) => (
+            <div key={key} style={{ marginBottom: 6, lineHeight: 1.45, color: '#374151' }}>
+              <span style={{ fontWeight: 600, color: '#111827' }}>{key}:</span> {value}
+            </div>
+          ))}
+          {popupFields.length > 8 ? (
+            <div style={{ marginTop: 8, color: '#9ca3af', fontStyle: 'italic' }}>
+              {popupFields.length - 8} additional fields hidden for readability
+            </div>
+          ) : null}
+          <div style={{ marginTop: 12, color: '#6b7280' }}>
+            Connections:{' '}
+            {
+              visibleGraph.edges.filter(
+                (edge) => edge.source === popupNode.id || edge.target === popupNode.id,
+              ).length
+            }
+          </div>
+        </div>
+      ) : null}
 
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
-        fitView={false}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
-        minZoom={0.15}
-        maxZoom={1.6}
+        fitView
+        fitViewOptions={{ padding: 0.1 }}
         nodesDraggable={false}
         nodesConnectable={false}
-        elementsSelectable
-        selectNodesOnDrag={false}
-        onlyRenderVisibleElements
-        onNodeClick={onNodeClick}
+        onlyRenderVisibleElements={true}
+        style={{ background: '#F9FAFB' }}
+        defaultEdgeOptions={{ type: 'straight' }}
+        onNodeClick={(event, node) => {
+          const originalNode =
+            graphData?.nodes.find((candidate) => candidate.id === node.id) ?? null;
+          setSelectedNode(originalNode);
+          setPopupNodeId(node.id);
+          setPopupPosition({ x: event.clientX + 16, y: event.clientY - 12 });
+        }}
       >
-        <Background color="#1e293b" gap={18} />
-        <Controls />
+        <Background color="#e5e7eb" gap={32} size={1} />
       </ReactFlow>
-
-      {selectedNode ? (
-        <div className="absolute bottom-4 left-4 z-10 w-[320px] rounded-xl border border-slate-700 p-4 backdrop-blur" style={{ background: '#161B27' }}>
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div>
-              <div
-                className="mb-2 inline-flex rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
-                style={{
-                  backgroundColor: `${NODE_COLORS[selectedNode.type] || '#64748B'}18`,
-                  color: NODE_COLORS[selectedNode.type] || '#CBD5E1',
-                }}
-              >
-                {selectedNode.type}
-              </div>
-              <div className="text-sm font-semibold text-slate-100">{selectedNode.label}</div>
-            </div>
-            <button className="text-xs text-slate-400 hover:text-slate-200" onClick={() => setSelectedNode(null)}>
-              X
-            </button>
-          </div>
-          <div className="max-h-[240px] space-y-2 overflow-auto pr-1 text-xs scrollbar-thin">
-            {Object.entries(selectedNode.data)
-              .filter(([, value]) => value !== null && value !== '')
-              .map(([key, value]) => (
-                <div key={key} className="grid grid-cols-[110px,1fr] gap-2">
-                  <div className="font-medium text-slate-400">{key}</div>
-                  <div className="break-all text-slate-200">{String(value)}</div>
-                </div>
-              ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
 
 export function GraphPanel(props: GraphPanelProps) {
-  if (!props.graphData) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/50 text-sm text-slate-400">
-        Loading graph...
-      </div>
-    );
-  }
-
   return (
     <ReactFlowProvider>
       <GraphCanvas {...props} />
