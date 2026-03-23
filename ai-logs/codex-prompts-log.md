@@ -1,7 +1,8 @@
 # Codex CLI — Prompts Log
+
 **Tool:** OpenAI Codex CLI  
 **Project:** SAP O2C Graph Query System — Forward Deployed Engineer Assignment  
-**Date:** March 22–23, 2026  
+**Date:** March 22–23, 2026
 
 ---
 
@@ -22,16 +23,16 @@ Please do the following:
 
 1. List all subfolders inside ./dataset/
 2. For each subfolder, read the first 2 lines of the first
-.jsonl file and print all field names (keys)
+   .jsonl file and print all field names (keys)
 3. Identify the primary key field for each table
-(usually an ID field like salesOrder, deliveryDocument, etc.)
+   (usually an ID field like salesOrder, deliveryDocument, etc.)
 4. Identify foreign key relationships between tables
-(fields that appear in multiple tables linking them together)
+   (fields that appear in multiple tables linking them together)
 5. Flag any nested JSON fields (objects inside objects,
-like time fields with {hours, minutes, seconds}) —
-these need to be flattened when loading into SQLite
+   like time fields with {hours, minutes, seconds}) —
+   these need to be flattened when loading into SQLite
 6. Report the approximate row count per table (count lines
-in all .jsonl files per folder)
+   in all .jsonl files per folder)
 
 ## Output Format
 
@@ -61,7 +62,7 @@ Now build db.py — the SQLite data loader for the SAP O2C system.
 
 ## Dataset Location
 
-./sap-o2c-data/   (19 subfolders, each with .jsonl files)
+./sap-o2c-data/ (19 subfolders, each with .jsonl files)
 
 ## Requirements
 
@@ -378,7 +379,7 @@ Write a function `load_all_data(db_path, dataset_path)` that:
 
 ### 7. Entry point
 
-If run directly (if __name__ == "__main__"), call load_all_data() then verify_data().
+If run directly (if **name** == "**main**"), call load_all_data() then verify_data().
 
 Database file location: ./data/o2c.db (create ./data/ if not exists)
 
@@ -480,6 +481,7 @@ Build these directed edges:
 ## Functions to Implement
 
 ### build_graph(db_path) → nx.DiGraph
+
 - Connects to SQLite
 - Adds all nodes with attributes: type, label, and all meta fields
 - Adds all edges with attribute: relation (the edge label string)
@@ -487,37 +489,45 @@ Build these directed edges:
 - Print summary: total nodes, total edges, breakdown by node type
 
 ### get_full_graph_json(G) → dict
+
 Returns:
 {
-  "nodes": [{"id": "...", "type": "SalesOrder", "label": "SO-740506", "data": {...}}],
-  "edges": [{"source": "...", "target": "...", "relation": "HAS_ITEM"}]
+"nodes": [{"id": "...", "type": "SalesOrder", "label": "SO-740506", "data": {...}}],
+"edges": [{"source": "...", "target": "...", "relation": "HAS_ITEM"}]
 }
 
 ### get_node_neighbors(G, node_id) → dict
+
 Returns the node itself plus all its direct neighbors (both in and out edges):
 {
-  "node": { id, type, label, data },
-  "neighbors": [{ "node": {...}, "relation": "HAS_ITEM", "direction": "out" }]
+"node": { id, type, label, data },
+"neighbors": [{ "node": {...}, "relation": "HAS_ITEM", "direction": "out" }]
 }
 
 ### get_o2c_flow(G, db_path, sales_order_id) → dict
+
 Traces the complete O2C flow for a given sales order with full nesting.
 
 ### get_broken_flows(G, db_path) → list
+
 Returns sales orders with incomplete O2C flows.
 Check: delivered_not_billed, billed_not_posted, no_delivery, paid_not_cleared
 
 ### get_graph_stats(G) → dict
+
 Returns total_nodes, total_edges, by_type breakdown, top_customers, top_products.
 
 ## Module Entry Point
+
 If run directly:
+
 1. Call build_graph('./data/o2c.db')
 2. Print get_graph_stats()
 3. Print get_node_neighbors() for first SalesOrder node
 4. Print get_broken_flows() count by issue type
 
 ## Important Notes
+
 - Store graph in module-level variable with get_graph() singleton pattern
 - Use sqlite3 directly, not SQLAlchemy
 - All node IDs must be strings
@@ -536,6 +546,7 @@ FastAPI app for the SAP O2C graph query system.
 ## llm.py
 
 ### Groq Setup
+
 - Model: llama-3.3-70b-versatile
 - API key from env: GROQ_API_KEY
 - Use the groq Python SDK: from groq import Groq
@@ -548,79 +559,80 @@ You are a data analyst for an SAP Order-to-Cash (O2C) system.
 You have access to a SQLite database with the following schema:
 
 TABLE: sales_order_headers
-  salesOrder (PK), salesOrderType, salesOrganization, soldToParty,
-  totalNetAmount, transactionCurrency, overallDeliveryStatus,
-  overallOrdReltdBillgStatus, creationDate, requestedDeliveryDate,
-  headerBillingBlockReason, deliveryBlockReason, customerPaymentTerms
-  STATUS CODES: overallDeliveryStatus: A=Not Delivered, B=Partial, C=Fully Delivered
-  STATUS CODES: overallOrdReltdBillgStatus: A=Not Billed, B=Partial, C=Fully Billed
+salesOrder (PK), salesOrderType, salesOrganization, soldToParty,
+totalNetAmount, transactionCurrency, overallDeliveryStatus,
+overallOrdReltdBillgStatus, creationDate, requestedDeliveryDate,
+headerBillingBlockReason, deliveryBlockReason, customerPaymentTerms
+STATUS CODES: overallDeliveryStatus: A=Not Delivered, B=Partial, C=Fully Delivered
+STATUS CODES: overallOrdReltdBillgStatus: A=Not Billed, B=Partial, C=Fully Billed
 
 TABLE: sales_order_items
-  salesOrder (FK→sales_order_headers), salesOrderItem (int),
-  material (FK→products), requestedQuantity, netAmount,
-  transactionCurrency, productionPlant (FK→plants)
-  NOTE: salesOrderItem is stored as integer (no leading zeros)
+salesOrder (FK→sales_order_headers), salesOrderItem (int),
+material (FK→products), requestedQuantity, netAmount,
+transactionCurrency, productionPlant (FK→plants)
+NOTE: salesOrderItem is stored as integer (no leading zeros)
 
 TABLE: sales_order_schedule_lines
-  salesOrder, salesOrderItem (int), scheduleLine,
-  confirmedDeliveryDate, confdOrderQtyByMatlAvailCheck
+salesOrder, salesOrderItem (int), scheduleLine,
+confirmedDeliveryDate, confdOrderQtyByMatlAvailCheck
 
 TABLE: outbound_delivery_headers
-  deliveryDocument (PK), shippingPoint, overallGoodsMovementStatus,
-  overallPickingStatus, creationDate, actualGoodsMovementDate
-  STATUS CODES: overallGoodsMovementStatus: A=Not Started, B=Partial, C=Complete
+deliveryDocument (PK), shippingPoint, overallGoodsMovementStatus,
+overallPickingStatus, creationDate, actualGoodsMovementDate
+STATUS CODES: overallGoodsMovementStatus: A=Not Started, B=Partial, C=Complete
 
 TABLE: outbound_delivery_items
-  deliveryDocument (FK→outbound_delivery_headers), deliveryDocumentItem,
-  referenceSdDocument (FK→sales_order_headers.salesOrder),
-  referenceSdDocumentItem (int, FK→sales_order_items.salesOrderItem),
-  material, actualDeliveryQuantity, plant (FK→plants)
-  NOTE: referenceSdDocumentItem is stored as integer for joining
+deliveryDocument (FK→outbound_delivery_headers), deliveryDocumentItem,
+referenceSdDocument (FK→sales_order_headers.salesOrder),
+referenceSdDocumentItem (int, FK→sales_order_items.salesOrderItem),
+material, actualDeliveryQuantity, plant (FK→plants)
+NOTE: referenceSdDocumentItem is stored as integer for joining
 
 TABLE: billing_document_headers
-  billingDocument (PK), billingDocumentType, soldToParty,
-  accountingDocument (FK→journal_entry_ar), totalNetAmount,
-  transactionCurrency, billingDocumentIsCancelled (0/1),
-  companyCode, fiscalYear, creationDate
+billingDocument (PK), billingDocumentType, soldToParty,
+accountingDocument (FK→journal_entry_ar), totalNetAmount,
+transactionCurrency, billingDocumentIsCancelled (0/1),
+companyCode, fiscalYear, creationDate
 
 TABLE: billing_document_items
-  billingDocument (FK→billing_document_headers), billingDocumentItem,
-  material (FK→products), billingQuantity, netAmount,
-  referenceSdDocument (FK→outbound_delivery_headers.deliveryDocument),
-  referenceSdDocumentItem (int)
+billingDocument (FK→billing_document_headers), billingDocumentItem,
+material (FK→products), billingQuantity, netAmount,
+referenceSdDocument (FK→outbound_delivery_headers.deliveryDocument),
+referenceSdDocumentItem (int)
 
 TABLE: billing_document_cancellations
-  billingDocument (PK), soldToParty, accountingDocument,
-  totalNetAmount, billingDocumentIsCancelled, cancelledBillingDocument
+billingDocument (PK), soldToParty, accountingDocument,
+totalNetAmount, billingDocumentIsCancelled, cancelledBillingDocument
 
 TABLE: journal_entry_ar
-  companyCode, fiscalYear, accountingDocument, accountingDocumentItem (PK together),
-  referenceDocument (FK→billing_document_headers.billingDocument),
-  customer, amountInTransactionCurrency, transactionCurrency, postingDate
+companyCode, fiscalYear, accountingDocument, accountingDocumentItem (PK together),
+referenceDocument (FK→billing_document_headers.billingDocument),
+customer, amountInTransactionCurrency, transactionCurrency, postingDate
 
 TABLE: payments_ar
-  companyCode, fiscalYear, accountingDocument, accountingDocumentItem (PK together),
-  customer, clearingDate, amountInTransactionCurrency,
-  transactionCurrency, postingDate
+companyCode, fiscalYear, accountingDocument, accountingDocumentItem (PK together),
+customer, clearingDate, amountInTransactionCurrency,
+transactionCurrency, postingDate
 
 TABLE: business_partners
-  businessPartner (PK), customer, businessPartnerFullName,
-  businessPartnerName, industry, businessPartnerIsBlocked
+businessPartner (PK), customer, businessPartnerFullName,
+businessPartnerName, industry, businessPartnerIsBlocked
 
 TABLE: products
-  product (PK), productType, baseUnit, grossWeight, productGroup
+product (PK), productType, baseUnit, grossWeight, productGroup
 
 TABLE: product_descriptions
-  product (FK→products), language, productDescription
-  NOTE: Use language='EN' for English descriptions
+product (FK→products), language, productDescription
+NOTE: Use language='EN' for English descriptions
 
 TABLE: plants
-  plant (PK), plantName, salesOrganization
+plant (PK), plantName, salesOrganization
 
 TABLE: product_plants
-  product, plant (PK together), countryOfOrigin, profitCenter
+product, plant (PK together), countryOfOrigin, profitCenter
 
 KEY JOIN PATHS:
+
 - Sales Order → Delivery:
   sales_order_items.salesOrder + salesOrderItem
   = outbound_delivery_items.referenceSdDocument + referenceSdDocumentItem
@@ -635,13 +647,14 @@ KEY JOIN PATHS:
   = payments_ar.accountingDocument
 
 RULES:
+
 1. Return ONLY a JSON object. No markdown, no explanation outside JSON.
 2. For answerable queries return:
    {"sql": "SELECT ...", "explanation": "...one sentence..."}
 3. For off-topic queries return:
    {"off_topic": true, "message": "This system only answers questions
-    about the SAP O2C dataset (orders, deliveries, billing, payments,
-    products, customers)."}
+   about the SAP O2C dataset (orders, deliveries, billing, payments,
+   products, customers)."}
 4. ONLY generate SELECT statements. Never DROP, DELETE, UPDATE, INSERT, ALTER.
 5. Always LIMIT results to 50 rows unless user asks for all.
 6. Use proper JOINs. Never assume data exists without joining.
@@ -676,26 +689,28 @@ def run_query(natural_language_query: str, db_path: str, conversation_history: l
 ## main.py
 
 Routes:
-- GET  /api/health
-- GET  /api/graph
-- GET  /api/graph/node/{node_id}
-- GET  /api/graph/expand/{node_id}
-- GET  /api/stats
-- GET  /api/flow/{sales_order}
-- GET  /api/broken-flows
-- GET  /api/suggested-queries
-- POST /api/chat  {query, history} → full pipeline result
+
+- GET /api/health
+- GET /api/graph
+- GET /api/graph/node/{node_id}
+- GET /api/graph/expand/{node_id}
+- GET /api/stats
+- GET /api/flow/{sales_order}
+- GET /api/broken-flows
+- GET /api/suggested-queries
+- POST /api/chat {query, history} → full pipeline result
 
 Lifespan: warm graph cache at startup
 CORS: allow all origins
 Static: serve ../frontend/dist with html=True
 
 Test after building:
-1. GET  http://localhost:8000/api/health
+
+1. GET http://localhost:8000/api/health
 2. POST /api/chat — "Which products appear in the most billing documents?"
 3. POST /api/chat — "Write me a poem" → must return answer_type: "off_topic"
 4. POST /api/chat — "DROP TABLE sales_order_headers" → must return answer_type: "off_topic"
-5. GET  /api/flow/740506
+5. GET /api/flow/740506
 
 ---
 
@@ -708,6 +723,7 @@ Tech: React 18 + TypeScript + Vite + TailwindCSS + @xyflow/react + axios
 Layout: Full viewport split panel — left 60% graph, right 40% chat
 
 GraphPanel:
+
 - Custom nodes colored by type
 - Click → expand neighbors via GET /api/graph/expand/{id}
 - Node detail drawer on selection
@@ -717,6 +733,7 @@ GraphPanel:
 - Default visible: BusinessPartner, SalesOrder, Delivery, BillingDocument, Payment
 
 ChatPanel:
+
 - Suggested query chips fetched from /api/suggested-queries
 - User/assistant message styling
 - SQL collapsible block
@@ -739,37 +756,45 @@ Replace the current layout logic with:
 
 ```typescript
 const TYPE_X: Record<string, number> = {
-  BusinessPartner: 0,
-  SalesOrder:      220,
-  SalesOrderItem:  440,
-  Delivery:        660,
-  BillingDocument: 880,
-  JournalEntry:    1100,
-  Payment:         1320,
-  Product:         440,
-  Plant:           660,
+    BusinessPartner: 0,
+    SalesOrder: 220,
+    SalesOrderItem: 440,
+    Delivery: 660,
+    BillingDocument: 880,
+    JournalEntry: 1100,
+    Payment: 1320,
+    Product: 440,
+    Plant: 660,
 };
 
 const TYPE_Y_OFFSET: Record<string, number> = {
-  BusinessPartner: 0, SalesOrder: 0, SalesOrderItem: 0,
-  Delivery: 0, BillingDocument: 0, JournalEntry: 0, Payment: 0,
-  Product: 600, Plant: 600,
+    BusinessPartner: 0,
+    SalesOrder: 0,
+    SalesOrderItem: 0,
+    Delivery: 0,
+    BillingDocument: 0,
+    JournalEntry: 0,
+    Payment: 0,
+    Product: 600,
+    Plant: 600,
 };
 
-function computeLayout(nodes: GraphNode[]): Record<string, {x: number, y: number}> {
-  const positions: Record<string, {x: number, y: number}> = {};
-  const typeCounters: Record<string, number> = {};
-  const Y_GAP = 70;
-  for (const node of nodes) {
-    const t = node.type;
-    if (typeCounters[t] === undefined) typeCounters[t] = 0;
-    const idx = typeCounters[t]++;
-    positions[node.id] = {
-      x: TYPE_X[t] ?? 0,
-      y: (TYPE_Y_OFFSET[t] ?? 0) + idx * Y_GAP,
-    };
-  }
-  return positions;
+function computeLayout(
+    nodes: GraphNode[],
+): Record<string, { x: number; y: number }> {
+    const positions: Record<string, { x: number; y: number }> = {};
+    const typeCounters: Record<string, number> = {};
+    const Y_GAP = 70;
+    for (const node of nodes) {
+        const t = node.type;
+        if (typeCounters[t] === undefined) typeCounters[t] = 0;
+        const idx = typeCounters[t]++;
+        positions[node.id] = {
+            x: TYPE_X[t] ?? 0,
+            y: (TYPE_Y_OFFSET[t] ?? 0) + idx * Y_GAP,
+        };
+    }
+    return positions;
 }
 ```
 
@@ -793,17 +818,20 @@ Two quick fixes in frontend/src/components/GraphPanel.tsx:
 ## Prompt 8 — Groq Fix + Performance + UI Polish
 
 Fix 1 — Groq (backend/llm.py):
+
 - Move load_dotenv() to very top of file
 - Add parse_llm_response() to strip markdown ```json fences
 - Pin httpx==0.27.2 in requirements.txt
 - Add GET /api/llm-status route
 
 Fix 2 — Performance (GraphPanel.tsx):
+
 - Default visibleTypes: BusinessPartner, SalesOrder, Delivery, BillingDocument, Payment
 - Add onlyRenderVisibleElements={true} to ReactFlow
 - Add type counts to filter buttons
 
 Fix 3 — Professional dark theme:
+
 - Background: #0F1117, Cards: #161B27, Borders: #1E2D3D
 - SQL block: monospace, #79C0FF on #0D1117
 - Off-topic card: #1C1508 bg, #92400E border
@@ -830,6 +858,7 @@ Update all relative paths after moving.
 ## Prompt 10 — Railway Deployment + README + Git
 
 Part 1: Create Dockerfile in project root:
+
 - python:3.11-slim base
 - Install Node 20 via nodesource
 - pip install backend/requirements.txt
@@ -838,11 +867,13 @@ Part 1: Create Dockerfile in project root:
 - entrypoint.sh with exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}
 
 Part 2: Fix static serving in backend/main.py:
-- Use Path(__file__).resolve() for reliable paths
+
+- Use Path(**file**).resolve() for reliable paths
 - Mount /assets first, then mount / with StaticFiles(html=True)
 - Add /api/debug-paths route for deployment debugging
 
 Part 3: railway.toml (deploy only, no startCommand):
+
 ```toml
 [deploy]
 healthcheckPath = "/api/health"
@@ -864,12 +895,128 @@ data quality notes, API reference, example queries.
 ## Prompt 11 — Fix Nodes Visible + Resizable Panel
 
 Fix 1 — Nodes not visible on load:
+
 - Increase fitView timeout to 300ms
 - Add fitView={false} and defaultViewport={{ x:0, y:0, zoom:0.5 }} to ReactFlow
 - Ensure computeLayout runs inside useMemo not useEffect
 
 Fix 2 — Resizable chat panel:
+
 - npm install react-resizable-panels
 - Replace fixed layout with PanelGroup/Panel/PanelResizeHandle
 - defaultSize 60/40, minSize 30/20, maxSize 80/70
 - Resize handle: 4px wide, #1E2D3D bg, cursor col-resize, blue on hover
+
+---
+
+## Prompt 12 — Complete UI Overhaul to Match Reference Design
+
+Rewrite entire frontend to match the reference UI from the assignment.
+
+Reference UI:
+
+- Light/white background (#F8F9FA)
+- Small circular nodes (~10px) not card-based
+- Blue circles for master data, coral/red for transaction nodes
+- Thin light-blue connecting lines
+- Force-directed layout using d3-force
+- Floating metadata popup on node click
+- Clean minimal controls: "Minimize" and "Hide Granular Overlay"
+
+Chat panel:
+
+- White background
+- "Chat with Graph" header, "Order to Cash" subtitle
+- Graph Agent avatar (dark circle with G)
+- User messages: dark bubble right-aligned
+- Agent messages: left-aligned with avatar
+- "Analyze anything" input placeholder
+- Inline results table (no SQL blocks, no colored cards)
+- Status: "Graph Agent is awaiting instructions"
+
+Install: npm install d3-force && npm install -D @types/d3-force
+
+Node colors:
+
+- Blue (#93C5FD border #3B82F6): BusinessPartner, SalesOrder, Product, Plant
+- Coral (#FCA5A5 border #EF4444): SalesOrderItem, Delivery, BillingDocument, JournalEntry, Payment
+
+Force layout:
+
+- forceLink distance=60, strength=0.3
+- forceManyBody strength=-80
+- forceCollide radius=12
+- sim.tick(250) synchronously
+
+Remove ALL dark colors, remove react-resizable-panels,
+remove colored assistant cards, remove SQL collapsible blocks.
+
+---
+
+## Prompt 13 — Performance + Chat Fixes
+
+Fix 1 — Graph laggy:
+
+- Run force simulation only ONCE using layoutDoneRef
+- Reduce ticks from 500 to 200
+- Add proOptions={{ hideAttribution: true }}
+- Memoize rfNodes and rfEdges with tight useMemo dependencies
+- React.memo on CircularNode component
+
+Fix 2 — Chat panel not resizable:
+
+- npm install react-resizable-panels
+- PanelGroup with Graph defaultSize=75, Chat defaultSize=32
+- Manual drag handle fallback
+
+Fix 3 — "+N more results" not clickable:
+
+- expandedMessages state (Set<string>)
+- Toggle expand/collapse per message
+- "↑ Show less" when expanded
+
+---
+
+## Prompt 14 — Fix Chat Panel Width + Node Spread
+
+Fix 1 — Chat panel crushed to near zero:
+Replace react-resizable-panels with manual drag resize:
+
+```typescript
+const [chatWidth, setChatWidth] = useState(380);
+const isDragging = useRef(false);
+// mousemove handler clamps width 280-700px
+```
+
+Fix 2 — Nodes too clustered:
+
+- Canvas: W=1200, H=900
+- Initial spread: 600px radius from center
+- forceLink distance=60, strength=0.3
+- forceManyBody strength=-80
+- forceCollide radius=12
+- fitView padding=0.05 after 400ms
+
+---
+
+## Prompt 15 — Final Polish + README Update
+
+Fix 1 — Chat subtitle hardcoded to "Order to Cash":
+
+```tsx
+<div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+    Order to Cash
+</div>
+```
+
+Fix 2 — Update README.md:
+
+- Add live URL: https://web-production-0075e.up.railway.app
+- Add Architecture Decision: React Flow + d3-force layout
+- Update node colors description (blue = master, coral = transaction)
+- Verify local run commands
+- Add Screenshot section placeholder
+
+git add README.md
+git commit -m "docs: update README with live URL and final UI"
+git push
