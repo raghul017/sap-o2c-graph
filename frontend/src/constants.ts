@@ -1,4 +1,5 @@
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const rawApiBase = import.meta.env.VITE_API_URL;
+export const API_BASE = rawApiBase !== undefined ? rawApiBase : 'http://localhost:8000';
 
 export const NODE_COLORS: Record<string, string> = {
   BusinessPartner: '#60A5FA',
